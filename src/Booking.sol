@@ -104,6 +104,14 @@ contract Booking {
 
     return Item({id: 0, name: "", price: 0});
   }
+  
+  function getOwnerItemQuantity(address owner, uint256 itemId) external view returns (uint256) {
+    return sOwnerItemQuantity[owner][itemId];
+  }
+
+  function ownerHasItem(address owner, uint256 itemId) public view returns (bool) {
+    return getOwnerItemById(owner, itemId).id > 0;
+  }
 
   fallback() external payable {}
   receive() external payable {}

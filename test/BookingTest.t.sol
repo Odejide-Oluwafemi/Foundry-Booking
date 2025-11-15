@@ -64,7 +64,17 @@ contract BookingTest is Test {
   modifier itemCreated() {
     vm.prank(USER);
     vm.deal(USER, 10 ether);
-    sBookingContract.createItem{value: sBookingContract.CREATE_ITEM_COST()}("Name", 1 ether, 10);
+    sBookingContract.createItem{value: sBookingContract.CREATE_ITEM_COST()}("Name", 1, 10);
+    _;
+  }
+
+  modifier itemCreatedAndPurchasedOneQuantity() {
+    vm.startPrank(USER);
+    vm.deal(USER, 10 ether);
+    sBookingContract.createItem{value: sBookingContract.CREATE_ITEM_COST()}("Name", 1, 10);
+
+    sBookingContract.purchaseItem(1, 1);
+    vm.stopPrank();
     _;
   }
 
@@ -121,5 +131,19 @@ contract BookingTest is Test {
     
     vm.expectRevert(Booking__OutOfStock.selector);
     sBookingContract.purchaseItem{value: 1 ether}(1, 1);
+  }
+
+  function testPurchaseItemFailsWhenExcessQuantityIsOrdered() public itemCreated {
+    vm.expectRevert(Booking__ExcessQuantityOrdered.selector);
+    sBookingContract.purchaseItem{value: 1 ether}(1, 11);
+  }
+
+  function testPurchaseAddsItemToUserItemsArray() public itemCreatedAndPurchasedOneQuantity {
+    // assertEq(sBookingContract.getOwnerItems(USER)[0].id, 1);
+    assertEq(sBookingContract.ownerHasItem(USER, 1), true);
+  }
+
+  function testPurchaseIncrementsUserItemQuantity() public itemCreatedAndPurchasedOneQuantity {
+    assertEq(sBookingContract.getOwnerItemQuantity(USER, 1), 1);
   }
 }
