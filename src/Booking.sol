@@ -42,7 +42,7 @@ contract Booking {
     if (sItemsQuantity[item.id] == 0) revert Booking__OutOfStock();
     if (quantity > sItemsQuantity[item.id]) revert Booking__ExcessQuantityOrdered();
 
-    (bool sent, ) = payable(address(this)).call{value: item.price}("");
+    (bool sent, ) = payable(address(this)).call{value: item.price * quantity}("");
     require(sent, "Failed to Purchase Item");
 
     if (getOwnerItemById(msg.sender, item.id).id == 0) sOwnersItems[msg.sender].push(item);

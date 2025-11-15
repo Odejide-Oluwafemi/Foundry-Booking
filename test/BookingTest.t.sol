@@ -69,10 +69,10 @@ contract BookingTest is Test {
   }
 
   modifier itemCreatedAndPurchasedOneQuantity() {
-    vm.startPrank(USER);
-    vm.deal(USER, 10 ether);
     sBookingContract.createItem{value: sBookingContract.CREATE_ITEM_COST()}("Name", 1, 10);
 
+    vm.startPrank(USER);
+    vm.deal(USER, 10 ether);
     sBookingContract.purchaseItem(1, 1);
     vm.stopPrank();
     _;
@@ -145,5 +145,31 @@ contract BookingTest is Test {
 
   function testPurchaseIncrementsUserItemQuantity() public itemCreatedAndPurchasedOneQuantity {
     assertEq(sBookingContract.getOwnerItemQuantity(USER, 1), 1);
+  }
+
+  function testPurchaseDeductsItemQuantity() public itemCreatedAndPurchasedOneQuantity {
+    assertEq(sBookingContract.getItemQuantity(1), 9);
+  }
+
+  function testPurchaseAddsToContractBalance() public itemCreated {
+    uint256 contractBalanceBefore = address(sBookingContract).balance;
+
+    vm.prank(USER);
+    vm.deal(USER, 10 ether);
+    sBookingContract.purchaseItem{value: 1 ether}(1, 1);
+
+    uint256 contractBalanceAfter = address(sBookingContract).balance;
+    assertEq(contractBalanceAfter, contractBalanceBefore + 1 ether);
+  }
+
+  function testPurchaseDeductsUserBalance() public itemCreated {
+    uint256 userBalanceBefore = address(USER).balance;
+
+    vm.prank(USER);
+    vm.deal(USER, 10 ether);
+    sBookingContract.purchaseItem{value: 1 ether}(1, 1);
+
+    uint256 userBalanceAfter = address(USER).balance;
+    assertEq(userBalanceAfter, userBalanceBefore - 1 ether);
   }
 }
