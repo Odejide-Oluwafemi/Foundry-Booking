@@ -110,4 +110,16 @@ contract BookingTest is Test {
     vm.expectRevert(Booking__ZeroQuantity.selector);
     sBookingContract.purchaseItem{value: 1 ether}(1, 0);
   }
+
+  function testPurchaseItemFailsWhenOutOfStock() public {
+    vm.startPrank(USER);
+    vm.deal(USER, 10 ether);
+
+    sBookingContract.createItem{value: sBookingContract.CREATE_ITEM_COST()}("Name", 1, 1);
+    sBookingContract.purchaseItem{value: 1 ether}(1, 1);
+    vm.stopPrank();
+    
+    vm.expectRevert(Booking__OutOfStock.selector);
+    sBookingContract.purchaseItem{value: 1 ether}(1, 1);
+  }
 }
