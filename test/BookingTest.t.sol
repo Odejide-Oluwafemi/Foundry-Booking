@@ -12,6 +12,7 @@ contract BookingTest is Test {
   error Booking__InvalidItemIndex();
   error Booking__InvalidOwnerAddress();
   error Booking__InsufficientETHSent();
+  error Booking__NotOwner();
 
   Booking sBookingContract;
   address USER = makeAddr("user");
@@ -26,6 +27,10 @@ contract BookingTest is Test {
 
   function testContractIsSet() public view {
     assert(address(sBookingContract) != address(0));
+  }
+
+  function testOwnerIsSet() public view {
+    assertEq(sBookingContract.getOwner(), msg.sender);
   }
 
   function testGetItemQuantityAfterDeployment() public view {
@@ -49,7 +54,7 @@ contract BookingTest is Test {
     sBookingContract.getOwnerItems(address(0));
   }
 
-  function testGetOwnerItemsAfterDeployment() public {
+  function testGetOwnerItemsAfterDeployment() public view {
     assertEq(sBookingContract.getOwnerItems(msg.sender).length, 0);
   }
 
@@ -76,6 +81,39 @@ contract BookingTest is Test {
     sBookingContract.purchaseItem(1, 1);
     vm.stopPrank();
     _;
+  }
+
+  function testGetItemsArraySize() public itemCreated {
+    assertEq(sBookingContract.getItemsArraySize(), 1);
+  }
+
+  function testGetItem() public itemCreated {
+    assertEq(sBookingContract.getItem(0).name, "Name");
+  }
+
+  function testGetItemById() public itemCreated {
+    assertEq(sBookingContract.getItemById(1).name, "Name");
+  }
+
+  function testGetOwnerItems() public itemCreatedAndPurchasedOneQuantity {
+    assertEq(sBookingContract.getOwnerItems(USER).length, 1);
+  }
+
+  function testGetOwnerItemById() public itemCreatedAndPurchasedOneQuantity {
+    assertEq(sBookingContract.getOwnerItemById(USER, 1).name, "Name");
+  }
+
+  function testGetAllItems() public view {
+    assertEq(sBookingContract.getAllItems().length, 0);
+  }
+
+  function testGetItemByIdFromItemsArray() public itemCreated {
+    assertEq(sBookingContract.getItemByIdFromItemsArray(sBookingContract.getAllItems(), 1).name, "Name");
+  }
+
+  function testGetItemRevertsWithInvalidArrayIndex() public {
+    vm.expectRevert(Booking__InvalidItemIndex.selector);
+    sBookingContract.getItem(0);
   }
 
   function testCreateItemRevertWithZeroQuantity() public {
@@ -171,5 +209,30 @@ contract BookingTest is Test {
 
     uint256 userBalanceAfter = address(USER).balance;
     assertEq(userBalanceAfter, userBalanceBefore - 1 ether);
+  }
+
+  function testWithdrawRevertsWhenCalledByNonOwner() public itemCreatedAndPurchasedOneQuantity{
+    vm.expectRevert(Booking__NotOwner.selector);
+    vm.prank(USER);
+    sBookingContract.withdraw();
+  }
+
+  function testWithdrawUpdatesOwnerBalance() public itemCreatedAndPurchasedOneQuantity {
+    address owner = sBookingContract.getOwner();
+    uint256 ownerBalanceBefore = owner.balance;
+    uint256 contractBalanceBefore = address(sBookingContract).balance;
+
+    vm.prank(owner);
+    sBookingContract.withdraw();
+
+    uint256 ownerBalanceAfter = owner.balance;
+    assertEq(ownerBalanceAfter, ownerBalanceBefore + contractBalanceBefore);
+  }
+
+  function testWithdrawDrainsContractBalanceToZero() public itemCreatedAndPurchasedOneQuantity {
+    vm.prank(sBookingContract.getOwner());
+    sBookingContract.withdraw();
+    
+    assertEq(address(sBookingContract).balance, 0);
   }
 }

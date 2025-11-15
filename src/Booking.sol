@@ -9,6 +9,7 @@ contract Booking {
   error Booking__InvalidItemIndex();
   error Booking__InvalidOwnerAddress();
   error Booking__InsufficientETHSent();
+  error Booking__NotOwner();
 
   struct Item {
     uint256 id;
@@ -16,12 +17,18 @@ contract Booking {
     uint256 price;
   }
 
+  address private immutable I_OWNER;
   uint256 public constant CREATE_ITEM_COST = 1 ether;
   mapping(uint256 itemid => uint256 quantity) private sItemsQuantity;
   mapping(address owner => mapping(uint256 itemId => uint256 quantity)) private sOwnerItemQuantity;
   Item[] private sItems;
   mapping(address owner => Item[] ownerItems) private sOwnersItems;
 
+  constructor() {
+    I_OWNER = msg.sender;
+  }
+
+  // Interaction Functions
   function createItem(string memory name, uint256 priceInEth, uint256 quantity) public payable {
     if (quantity == 0) revert Booking__ZeroQuantity();
     if (priceInEth == 0) revert Booking__ZeroPrice();
@@ -50,13 +57,31 @@ contract Booking {
     sItemsQuantity[itemId] -= quantity;
   }
 
+  function withdraw() public payable onlyOwner {
+    (bool sent, ) = payable(address(I_OWNER)).call{value: address(this).balance}("");
+    require(sent, "Failed to Purchase Item");
+  }
+
   // Modifiers
+  modifier onlyOwner() {
+    if (msg.sender != I_OWNER) revert Booking__NotOwner();
+    _;
+  }
+
   modifier validOwner(address owner) {
     if (owner == address(0)) revert Booking__InvalidOwnerAddress();
     _;
   }
 
   // Getters
+  function getOwner() external view returns (address) {
+    return I_OWNER;
+  }
+
+  function getAllItems() external view returns (Item[] memory) {
+    return sItems;
+  }
+
   function getItemQuantity(uint256 itemId) external view returns(uint256) {
     return sItemsQuantity[itemId];
   }
